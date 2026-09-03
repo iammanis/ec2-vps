@@ -1,0 +1,53 @@
+title: EC2 VPS under $20
+tagline: Every AWS EC2 On-Demand instance you can run as an SSH-accessible VPS for less than $20 a month — all costs included.
+description: >-
+  A live, all-in cost breakdown of running an SSH-accessible Amazon EC2 server for
+  under $20/month On-Demand. Includes EC2 compute, public IPv4 address charges,
+  EBS storage, NAT Gateway, data transfer and Route 53 DNS, priced from AWS's own
+  live pricing feeds across 23 regions.
+author: iammanis
+
+# Set `url` to your custom domain once the CNAME is in place, e.g. https://ec2vps.example.com
+# `baseurl` is injected automatically by the GitHub Actions workflow, so leave it blank here.
+url: ""
+baseurl: ""
+
+repository: iammanis/ec2-vps
+github_repo_url: https://github.com/iammanis/ec2-vps
+
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+  hard_wrap: false
+
+sass:
+  style: compressed
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - README.md
+  - tools/
+  - vendor/
+  - .github/
+  - .gitignore
+
+# Navigation rendered in the header.
+nav:
+  - title: Pricing explorer
+    url: /
+  - title: Cost model
+    url: /cost-model/
+  - title: SSH via your domain
+    url: /ssh-setup/
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default

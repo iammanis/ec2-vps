@@ -1,0 +1,15 @@
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="{{ '/' | relative_url }}">
+      <span class="brand-mark" aria-hidden="true">$</span>
+      <span class="brand-text">EC2&nbsp;VPS <span class="brand-accent">under&nbsp;$20</span></span>
+    </a>
+    <nav class="site-nav" aria-label="Primary">
+      {%- for item in site.nav -%}
+        {%- assign target = item.url | relative_url -%}
+        <a href="{{ target }}"{% if page.url == item.url %} class="active" aria-current="page"{% endif %}>{{ item.title }}</a>
+      {%- endfor -%}
+      <a class="nav-repo" href="{{ site.github_repo_url }}" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
