@@ -1,0 +1,65 @@
+name: Deploy site to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'README.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deploys at once; don't cancel one that is mid-flight.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Verify pricing dataset is present
+        run: |
+          test -s assets/data/pricing.json || { echo "::error::assets/data/pricing.json is missing or empty. Run tools/build_pricing.py"; exit 1; }
+          test -s _data/rates.json         || { echo "::error::_data/rates.json is missing or empty"; exit 1; }
+          test -s _data/meta.json          || { echo "::error::_data/meta.json is missing or empty"; exit 1; }
+          python3 -c "import json;d=json.load(open('assets/data/pricing.json'));assert d['regions'],'no regions';print('dataset ok:',len(d['regions']),'regions, generated',d['generated_utc'])"
+
+      # `base_path` is '' for a custom domain and '/<repo>' for the default
+      # github.io URL, so the same commit works in both cases.
+      - name: Build with Jekyll
+        run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
+        env:
+          JEKYLL_ENV: production
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

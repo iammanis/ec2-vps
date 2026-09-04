@@ -1,0 +1,404 @@
+---
+layout: default
+title: EC2 instances you can run for under $20/month
+body_class: home
+---
+
+{%- assign r = site.data.rates['us-east-1'] -%}
+{%- assign cheapest_region = site.data.rates['ap-south-1'] -%}
+
+<section class="hero">
+  <div class="wrap">
+    <h1>Run a real SSH-accessible EC2 box for <em>under&nbsp;$20 a&nbsp;month</em></h1>
+    <p class="lede">
+      Not the compute-only number AWS puts on its pricing page — the honest one. Compute
+      <strong>plus</strong> the public IPv4 address charge, <strong>plus</strong> the EBS root
+      volume, <strong>plus</strong> DNS, priced live from AWS's own feeds across
+      {{ site.data.meta.region_count }} regions.
+    </p>
+
+    <div class="verdict">
+      <div class="verdict-card">
+        <div class="k">Cheapest all-in</div>
+        <div class="v">${{ cheapest_region.f.cheapest_total_mo }}</div>
+        <div class="n">{{ cheapest_region.cheapest_type }} in {{ cheapest_region.short }}</div>
+      </div>
+      <div class="verdict-card">
+        <div class="k">Fixed overhead</div>
+        <div class="v">${{ r.f.fixed_overhead_mo }}</div>
+        <div class="n">IPv4 + 8&nbsp;GB gp3 + Route&nbsp;53, before any compute</div>
+      </div>
+      <div class="verdict-card">
+        <div class="k">Public IPv4</div>
+        <div class="v">${{ r.f.ipv4_mo }}</div>
+        <div class="n">${{ r.f.ipv4_hr }}/hr × 730&nbsp;hr — unavoidable for plain SSH</div>
+      </div>
+      <div class="verdict-card">
+        <div class="k">NAT Gateway</div>
+        <div class="v">${{ r.f.nat_mo }}</div>
+        <div class="n">Which is why this build uses none</div>
+      </div>
+    </div>
+
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="#explorer">Open the pricing explorer</a>
+      <a class="btn btn-ghost" href="{{ '/ssh-setup/' | relative_url }}">Set up myvps.domain.com &raquo;</a>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="explorer">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>1 · Configure your server</h2>
+      <p>
+        Everything below recalculates instantly. Defaults describe a realistic personal VPS:
+        always-on for a full month, an 8&nbsp;GB gp3 root disk, one public IPv4 address, a
+        Route&nbsp;53 hosted zone for <code>myvps.domain.com</code>, and light traffic.
+      </p>
+    </div>
+
+    <div class="card card-pad" id="app"
+         data-pricing-url="{{ '/assets/data/pricing.json' | relative_url }}">
+      <div class="controls">
+        <div class="control">
+          <label for="region">AWS region</label>
+          <select id="region"></select>
+          <span class="hint" id="region-hint">&nbsp;</span>
+        </div>
+
+        <div class="control">
+          <label for="budget">Monthly budget</label>
+          <div class="range-row">
+            <input type="range" id="budget" min="5" max="60" step="1" value="20">
+            <output for="budget" id="budget-out">$20</output>
+          </div>
+          <span class="hint">Rows above this are dimmed, not hidden.</span>
+        </div>
+
+        <div class="control">
+          <label for="hours">Hours running per month</label>
+          <div class="range-row">
+            <input type="range" id="hours" min="10" max="730" step="10" value="730">
+            <output for="hours" id="hours-out">730</output>
+          </div>
+          <span class="hint">730&nbsp;hr = always on. AWS bills per second, so stopping the
+            instance overnight genuinely reduces compute.</span>
+        </div>
+
+        <div class="control">
+          <label for="ebs">Root volume — gp3 (GB)</label>
+          <div class="range-row">
+            <input type="range" id="ebs" min="8" max="120" step="1" value="8">
+            <output for="ebs" id="ebs-out">8</output>
+          </div>
+          <span class="hint">8&nbsp;GB is the usual Amazon Linux / Ubuntu default. Billed even
+            while the instance is stopped.</span>
+        </div>
+
+        <div class="control">
+          <label for="egress">Data out to internet (GB)</label>
+          <div class="range-row">
+            <input type="range" id="egress" min="0" max="500" step="5" value="20">
+            <output for="egress" id="egress-out">20</output>
+          </div>
+          <span class="hint">First {{ site.data.meta.free_egress_gb }}&nbsp;GB/month is free
+            account-wide. Inbound is always free.</span>
+        </div>
+
+        <div class="control">
+          <label for="snapshot">EBS snapshots stored (GB)</label>
+          <div class="range-row">
+            <input type="range" id="snapshot" min="0" max="200" step="5" value="0">
+            <output for="snapshot" id="snapshot-out">0</output>
+          </div>
+          <span class="hint">Optional backups. Charged on compressed, changed blocks.</span>
+        </div>
+      </div>
+
+      <div class="controls" style="margin-top:20px">
+        <div class="control" style="grid-column: 1 / -1">
+          <label>Cost switches</label>
+          <div class="switches">
+            <label class="switch">
+              <input type="checkbox" id="ipv4" checked>
+              <span><b>Public IPv4 address</b>
+                <small>Required to <code>ssh</code> to a hostname from anywhere. Uncheck only for IPv6-only.</small></span>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="route53" checked>
+              <span><b>Route&nbsp;53 hosted zone</b>
+                <small>$0.50/mo. Uncheck if your registrar hosts DNS for free.</small></span>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="nat">
+              <span><b>NAT Gateway</b>
+                <small>Watch what this does to the total. You almost certainly don't need one.</small></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls" style="margin-top:20px">
+        <div class="control">
+          <label>CPU architecture</label>
+          <div class="chips" id="arch-chips" role="group" aria-label="Filter by architecture">
+            <button class="chip" type="button" data-arch="all" aria-pressed="true">All</button>
+            <button class="chip" type="button" data-arch="arm64" aria-pressed="false">Graviton (arm64)</button>
+            <button class="chip" type="button" data-arch="x86_64" aria-pressed="false">x86_64</button>
+          </div>
+        </div>
+        <div class="control">
+          <label for="minvcpu">Minimum vCPU</label>
+          <select id="minvcpu">
+            <option value="0">Any</option>
+            <option value="1">1+</option>
+            <option value="2">2+</option>
+            <option value="4">4+</option>
+            <option value="8">8+</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="minmem">Minimum memory</label>
+          <select id="minmem">
+            <option value="0">Any</option>
+            <option value="0.5">0.5 GiB+</option>
+            <option value="1">1 GiB+</option>
+            <option value="2">2 GiB+</option>
+            <option value="4">4 GiB+</option>
+            <option value="8">8 GiB+</option>
+            <option value="16">16 GiB+</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="search">Filter by name</label>
+          <input type="text" id="search" placeholder="t4g, m7g, c6i…" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="control">
+          <label>Options</label>
+          <div class="switches">
+            <label class="switch">
+              <input type="checkbox" id="onlyfit">
+              <span><b>Only within budget</b><small>Hide everything over the line.</small></span>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="burstonly">
+              <span><b>Burstable only</b><small>T-family (t2/t3/t3a/t4g).</small></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls-footer">
+        <span class="muted" id="assumption-line">&nbsp;</span>
+        <button class="btn-reset" type="button" id="reset">Reset to defaults</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>2 · Your bill, line by line</h2>
+      <p>Pick any row in the table below to price it here.</p>
+    </div>
+
+    <div class="breakdown-grid">
+      <div class="card card-pad">
+        <p class="bd-title">Selected instance</p>
+        <p class="bd-pick" id="bd-pick">—</p>
+        <p class="bd-spec" id="bd-spec">Loading live AWS rates…</p>
+        <ul class="lines" id="bd-lines"></ul>
+        <div class="verdict-banner ok" id="bd-verdict" hidden></div>
+      </div>
+
+      <div class="card card-pad">
+        <p class="bd-title">Where the money goes</p>
+        <div class="bar" id="bd-bar" role="img" aria-label="Cost composition"></div>
+        <div class="bar-legend" id="bd-legend"></div>
+
+        <div class="stat-grid stat-grid-tight" id="bd-stats"></div>
+
+        <p class="muted">
+          On the smallest instances the fixed overhead — public IPv4, root volume and DNS — is
+          often <em>larger than the compute itself</em>. That is the single most misunderstood
+          thing about cheap EC2, and it is why a "$3/month" <code>t4g.nano</code> actually costs
+          about <strong>${{ r.f.cheapest_total_mo }}</strong> in {{ r.short }}.
+        </p>
+
+        <p class="bd-title" style="margin-top:22px">Same instance, cheapest regions</p>
+        <div class="table-wrap">
+          <table class="data data-compact" id="bd-regions">
+            <thead>
+              <tr>
+                <th class="tl" scope="col">Region</th>
+                <th scope="col">$/hr</th>
+                <th scope="col">All-in $/mo</th>
+                <th scope="col">vs. here</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>3 · Every instance, all-in <span class="count" id="table-count"></span></h2>
+      <p>
+        <strong>All-in $/mo</strong> is the number that matters: compute + IPv4 + EBS +
+        snapshots + DNS + billable egress + NAT, under the settings above. Sort any column.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data" id="table">
+          <thead>
+            <tr>
+              <th class="tl sortable" data-sort="t" scope="col">Instance <span class="arrow" aria-hidden="true"></span></th>
+              <th class="sortable" data-sort="v" scope="col">vCPU <span class="arrow" aria-hidden="true"></span></th>
+              <th class="sortable" data-sort="m" scope="col">Memory <span class="arrow" aria-hidden="true"></span></th>
+              <th class="tl" scope="col">Arch</th>
+              <th class="tl" scope="col">Network</th>
+              <th class="sortable" data-sort="h" scope="col">$/hr <span class="arrow" aria-hidden="true"></span></th>
+              <th class="sortable" data-sort="compute" scope="col">Compute <span class="arrow" aria-hidden="true"></span></th>
+              <th class="sortable" data-sort="fixed" scope="col">IPv4+EBS+DNS <span class="arrow" aria-hidden="true"></span></th>
+              <th class="sortable" data-sort="total" scope="col">All-in $/mo <span class="arrow" aria-hidden="true"></span></th>
+              <th scope="col">Budget</th>
+              <th scope="col"><span class="sr-only">Select</span></th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="11" class="empty">Loading live AWS pricing…</td></tr>
+          </tbody>
+          <tfoot>
+            <tr><td colspan="11" id="table-note"></td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <noscript>
+      <div class="callout warn" style="margin-top:20px">
+        <h3>JavaScript is off</h3>
+        <p>
+          The interactive explorer needs JavaScript. The static
+          <a href="{{ '/cost-model/' | relative_url }}">cost model page</a> lists every rate and a
+          worked example per region, and the raw dataset is at
+          <a href="{{ '/assets/data/pricing.json' | relative_url }}">/assets/data/pricing.json</a>.
+        </p>
+      </div>
+    </noscript>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>The NAT Gateway trap</h2>
+      <p>The most common way a "cheap" EC2 project quietly turns into a $50 bill.</p>
+    </div>
+    <div class="callout danger">
+      <h3>A NAT Gateway costs more than everything else combined</h3>
+      <p>
+        In {{ r.short }} a NAT Gateway is <strong>${{ r.f.nat_hr }}/hour</strong>, billed for every
+        hour it exists whether or not a single packet crosses it. That is
+        <strong>${{ r.f.nat_mo }}/month</strong> before the <strong>${{ r.f.nat_gb }}/GB</strong>
+        processing fee. It alone is more than double the entire $20 budget.
+      </p>
+      <p>
+        Plenty of tutorials tell you to put your instance in a private subnet behind a NAT
+        Gateway. For a single SSH-accessible VPS that is the wrong architecture and the wrong
+        bill. Put the instance in a <strong>public subnet</strong> with an
+        <strong>Internet Gateway</strong> — an IGW has no hourly charge and no per-GB charge — and
+        control access with a security group. Tick the NAT Gateway switch above to watch the
+        total jump.
+      </p>
+      <p><a href="{{ '/cost-model/#nat-gateway' | relative_url }}">Full NAT Gateway analysis and the cheaper alternatives &raquo;</a></p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Region comparison</h2>
+      <p>
+        Same server, {{ site.data.meta.region_count }} regions. Fixed overhead is one public IPv4
+        + 8&nbsp;GB gp3 + a Route&nbsp;53 zone; the cheapest column is the full all-in monthly
+        total for that region's least expensive instance.
+      </p>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th class="tl" scope="col">Region</th>
+              <th class="tl" scope="col">Code</th>
+              <th class="tl" scope="col">Area</th>
+              <th scope="col">IPv4 /mo</th>
+              <th scope="col">gp3 /GB-mo</th>
+              <th scope="col">Egress /GB</th>
+              <th scope="col">NAT /mo</th>
+              <th scope="col">Fixed overhead</th>
+              <th class="tl" scope="col">Cheapest option</th>
+              <th scope="col">All-in /mo</th>
+              <th scope="col">Under $20</th>
+            </tr>
+          </thead>
+          <tbody>
+            {%- for reg in site.data.regions -%}
+            <tr>
+              <td class="tl">{{ reg.short }}</td>
+              <td class="tl num">{{ reg.id }}</td>
+              <td class="tl">{{ reg.geo }}</td>
+              <td class="num">${{ reg.f.ipv4_mo }}</td>
+              <td class="num">${{ reg.f.gp3 }}</td>
+              <td class="num">${{ reg.f.dto }}</td>
+              <td class="num">${{ reg.f.nat_mo }}</td>
+              <td class="num">${{ reg.f.fixed_overhead_mo }}</td>
+              <td class="tl type">{{ reg.cheapest_type }}</td>
+              <td class="total">${{ reg.f.cheapest_total_mo }}</td>
+              <td class="num">{{ reg.under_budget_count }}</td>
+            </tr>
+            {%- endfor -%}
+          </tbody>
+          <tfoot>
+            <tr><td colspan="11">
+              "Under $20" counts instance types whose full all-in monthly cost stays below $20
+              at the baseline settings. Sorted by cheapest all-in total.
+            </td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Next step</h2>
+    </div>
+    <div class="callout good">
+      <h3>You picked an instance. Now make <code>ssh myvps.domain.com</code> work.</h3>
+      <p>
+        The setup guide walks the whole path end to end: VPC and public subnet, an Internet
+        Gateway, a locked-down security group, key-pair creation, allocating the Elastic IP,
+        pointing <code>myvps.domain.com</code> at it from Route&nbsp;53 <em>or</em> any external
+        registrar, then hardening sshd and putting a billing alarm in place so a surprise can
+        never compound silently.
+      </p>
+      <p><a class="btn btn-primary" href="{{ '/ssh-setup/' | relative_url }}">Read the setup guide &raquo;</a></p>
+    </div>
+  </div>
+</section>
+
+<script src="{{ '/assets/js/app.js' | relative_url }}" defer></script>

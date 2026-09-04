@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="EC2 VPS under twenty dollars">
+  <rect width="64" height="64" rx="13" fill="#0f172a"/>
+  <path d="M8 46h48" stroke="#233047" stroke-width="3" stroke-linecap="round"/>
+  <text x="32" y="41" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"
+        font-size="34" font-weight="700" fill="#ff9d2f" text-anchor="middle">$</text>
+</svg>

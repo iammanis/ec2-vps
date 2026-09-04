@@ -1,0 +1,59 @@
+name: Refresh AWS pricing data
+
+# AWS changes prices without notice. Re-read the live feeds weekly and commit any
+# movement; the Pages workflow then redeploys automatically on that push.
+on:
+  schedule:
+    - cron: '17 5 * * 1'   # Mondays 05:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-pricing
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Rebuild dataset from AWS feeds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Rebuild pricing dataset
+        run: python3 tools/build_pricing.py
+
+      - name: Sanity-check the result
+        run: |
+          python3 - <<'PY'
+          import json
+          d = json.load(open('assets/data/pricing.json'))
+          assert len(d['regions']) >= 20, f"only {len(d['regions'])} regions"
+          for reg in d['regions']:
+              assert reg['instances'], f"{reg['id']} has no instances"
+              rates = reg['rates']
+              for key in ('ipv4_in_use_hr', 'ebs_gp3_gb_mo', 'nat_hr', 'dto_gb'):
+                  assert rates.get(key), f"{reg['id']} missing {key}"
+          print(f"ok: {len(d['regions'])} regions, "
+                f"{sum(len(r['instances']) for r in d['regions'])} rate rows")
+          PY
+
+      - name: Commit if anything moved
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Ignore the generated-timestamp-only churn: only commit if a rate changed.
+          if git diff --quiet -- assets/data/pricing.json _data/rates.json; then
+            echo "No pricing changes."
+            exit 0
+          fi
+          git add assets/data/pricing.json _data/rates.json _data/meta.json
+          git commit -m "chore(data): refresh AWS pricing from live feeds"
+          git push

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>{% include head.html %}</head>
+<body{% if page.body_class %} class="{{ page.body_class }}"{% endif %}>
+  <a class="skip-link" href="#main">Skip to content</a>
+  {% include header.html %}
+  <main id="main">
+    {% if page.layout_title %}
+    <div class="page-head">
+      <div class="wrap">
+        <h1>{{ page.layout_title }}</h1>
+        {% if page.subtitle %}<p class="lede">{{ page.subtitle }}</p>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+    {% if page.prose %}
+    <div class="wrap prose">{{ content }}</div>
+    {% else %}
+    {{ content }}
+    {% endif %}
+  </main>
+  {% include footer.html %}
+</body>
+</html>
