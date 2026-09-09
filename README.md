@@ -64,7 +64,7 @@ Gateway, which is free.
 │   ├── js/app.js                    Explorer logic + cost model
 │   ├── favicon.svg
 │   └── data/pricing.json            GENERATED — full dataset (~240 KiB)
-├── tools/build_pricing.py           Regenerates all three generated files
+├── tools/build_pricing.py           Regenerates all four generated files
 └── .github/workflows/
     ├── pages.yml                    Build + deploy to GitHub Pages
     └── refresh-pricing.yml          Weekly re-fetch of AWS rates
@@ -92,8 +92,11 @@ It reads the same JSON documents that back the `aws.amazon.com/*/pricing` pages:
 The cost model lives in `monthly_cost()` in `tools/build_pricing.py` and is mirrored in
 `breakdown()` in `assets/js/app.js`. **Change one, change the other.**
 
-A scheduled workflow re-runs the builder every Monday and commits only if a rate actually moved
-(timestamp-only churn is ignored).
+A scheduled workflow re-runs the builder every Monday and commits only if a rate actually moved.
+Because every generated file carries a fresh build timestamp, a plain `git diff` would report a
+change on every run — so the workflow compares SHA-256 fingerprints of the generated JSON with
+`generated_utc`, `generated_human` and `feed_publication_dates` stripped out. A week with no
+price movement produces no commit and no redeploy.
 
 ## Running locally
 

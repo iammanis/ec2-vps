@@ -45,15 +45,69 @@ jobs:
                 f"{sum(len(r['instances']) for r in d['regions'])} rate rows")
           PY
 
-      - name: Commit if anything moved
+      # A plain `git diff` cannot answer "did a price move?", because every
+      # generated file carries a fresh build timestamp and would therefore
+      # differ on every single run. Compare content fingerprints with the
+      # build-time-only fields stripped out instead.
+      - name: Detect real rate movement
+        id: check
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, subprocess
+
+          BUILD_TIME_ONLY = ("generated_utc", "generated_human")
+          TRACKED = (
+              "assets/data/pricing.json",
+              "_data/rates.json",
+              "_data/regions.json",
+              "_data/meta.json",
+          )
+
+          def fingerprint(text):
+              data = json.loads(text)
+              if isinstance(data, dict):
+                  for key in BUILD_TIME_ONLY:
+                      data.pop(key, None)
+                  # AWS republishes feeds without changing prices, so the
+                  # publication dates are not evidence of a rate change either.
+                  data.pop("feed_publication_dates", None)
+              return hashlib.sha256(
+                  json.dumps(data, sort_keys=True, separators=(",", ":")).encode()
+              ).hexdigest()
+
+          changed = []
+          for path in TRACKED:
+              head = subprocess.run(["git", "show", f"HEAD:{path}"],
+                                    capture_output=True, text=True)
+              if head.returncode != 0:
+                  print(f"NEW       {path}")
+                  changed.append(path)
+                  continue
+              with open(path, encoding="utf-8") as fh:
+                  current = fh.read()
+              if fingerprint(head.stdout) != fingerprint(current):
+                  print(f"CHANGED   {path}")
+                  changed.append(path)
+              else:
+                  print(f"unchanged {path}")
+
+          print("\nreal movement:", bool(changed))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
+              fh.write(f"changed={'true' if changed else 'false'}\n")
+          PY
+
+      - name: Commit the refreshed data
+        if: steps.check.outputs.changed == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Ignore the generated-timestamp-only churn: only commit if a rate changed.
-          if git diff --quiet -- assets/data/pricing.json _data/rates.json; then
-            echo "No pricing changes."
-            exit 0
-          fi
-          git add assets/data/pricing.json _data/rates.json _data/meta.json
+          git add assets/data/pricing.json \
+                  _data/rates.json _data/regions.json _data/meta.json
           git commit -m "chore(data): refresh AWS pricing from live feeds"
           git push
+
+      - name: Discard build-timestamp churn
+        if: steps.check.outputs.changed != 'true'
+        run: |
+          git checkout -- .
+          echo "No rate movement this run. Nothing committed, no redeploy triggered."
